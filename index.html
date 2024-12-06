@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ShapeXp dApp</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+</head>
+<body>
+
+    <div class="container">
+        <h1>ShapeXp dApp</h1>
+        <button id="connect-wallet">Connect Wallet</button>
+        <div id="wallet-status">Not Connected</div>
+        <div id="nft-status">NFT Status: Not Checked</div>
+        <button id="mint-button" disabled>Mint ShapeXp NFT</button>
+        <div id="mint-status"></div>
+
+        <div class="experience-section">
+            <h2>Global Experience</h2>
+            <div id="experience-display">Loading...</div>
+            <button id="refresh-exp" disabled>Refresh Experience</button>
+        </div>
+
+        <div class="experience-actions">
+            <button id="add-exp-low" disabled>Add Low XP</button>
+            <button id="add-exp-mid" disabled>Add Mid XP</button>
+            <button id="add-exp-high" disabled>Add High XP</button>
+            <div id="add-exp-status"></div>
+        </div>
+
+    </div>
+
+
+    <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

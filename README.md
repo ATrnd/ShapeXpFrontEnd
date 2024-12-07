@@ -1,0 +1,5 @@
+![ShapeXp_connect_0.1](https://github.com/ATrnd/ShapeXpFrontEnd/blob/main/shape_xp_UI_design_concept_0.1/shape_xp_UI_connect_0.1.jpg)
+![ShapeXp_claim_shape_xp_0.1](https://github.com/ATrnd/ShapeXpFrontEnd/blob/main/shape_xp_UI_design_concept_0.1/shape_xp_UI_claim_shape_xp_0.1.jpg)
+![ShapeXp_enter_world_0.1](https://github.com/ATrnd/ShapeXpFrontEnd/blob/main/shape_xp_UI_design_concept_0.1/shape_xp_UI_enter_world_0.1.jpg)
+![ShapeXp_use_shape_xp_0.1](https://github.com/ATrnd/ShapeXpFrontEnd/blob/main/shape_xp_UI_design_concept_0.1/shape_xp_UI_use_shape_xp_0.1.jpg)
+![ShapeXp_xp_config_0.1](https://github.com/ATrnd/ShapeXpFrontEnd/blob/main/shape_xp_UI_design_concept_0.1/shape_xp_UI_shape_xp_config_0.1.jpg)

@@ -45,7 +45,7 @@ button {
     padding: 10px 20px;
     margin: 10px 0;
 }
-#nft-status, #mint-status {
+#nft-status, #mint-status, #nft-fetch-status {
     margin: 10px 0;
     padding: 10px;
     border-radius: 4px;
@@ -69,4 +69,35 @@ button {
 #experience-display {
     font-size: 1.2em;
     margin: 10px 0;
+}
+
+.nft-section {
+    margin-top: 20px;
+    padding: 15px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.nft-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.nft-item {
+    padding: 1rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: #f9f9f9;
+}
+
+.nft-item p {
+    margin: 0.5rem 0;
+    word-break: break-all;
+}
+
+.nft-image {
+   width: 100px;
+   height: 100px;
 }

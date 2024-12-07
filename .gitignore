@@ -24,3 +24,8 @@ dist-ssr
 *.sw?
 __doc
 __ref
+.env
+
+Copy.env
+.env.local
+.env.*.local

@@ -5,7 +5,8 @@ import { mintShapeXpNFT } from './features/nft-minting';
 import { getGlobalExperience } from './features/experience-tracking';
 import { ExperienceAmount } from './contracts/abis.ts';
 import { addGlobalExperience } from './features/add-experience.ts';
-
+import { fetchUserNFTs, filterNFTs, SimpleNFT } from './features/nft-fetching';
+import { SHAPE_XP_NFT_ADDRESS } from './contracts/addresses';
 
 declare global {
     interface Window {
@@ -20,11 +21,14 @@ class ConnectionManager {
     private expLowButton: HTMLButtonElement;
     private expMidButton: HTMLButtonElement;
     private expHighButton: HTMLButtonElement;
+    private fetchNFTsButton: HTMLButtonElement;
     private statusDisplay: HTMLElement;
     private nftStatusDisplay: HTMLElement;
     private mintStatusDisplay: HTMLElement;
     private experienceDisplay: HTMLElement;
     private addExpStatus: HTMLElement;
+    private nftList: HTMLElement;
+    private nftFetchStatus: HTMLElement;
 
     constructor() {
 
@@ -40,9 +44,13 @@ class ConnectionManager {
         this.mintStatusDisplay = document.getElementById('mint-status') as HTMLElement;
         this.experienceDisplay = document.getElementById('experience-display') as HTMLElement;
         this.addExpStatus = document.getElementById('add-exp-status') as HTMLElement;
+        this.fetchNFTsButton = document.getElementById('fetch-nfts') as HTMLButtonElement;
+        this.nftList = document.getElementById('nft-list') as HTMLElement;
+        this.nftFetchStatus = document.getElementById('nft-fetch-status') as HTMLElement;
 
         this.setupEventListeners();
         this.checkInitialConnection();
+        this.fetchNFTsButton.addEventListener('click', () => this.handleFetchNFTs());
     }
 
     private setupEventListeners() {
@@ -135,20 +143,20 @@ class ConnectionManager {
             // If user has NFT, fetch and display experience
             if (hasNFT) {
                 await this.updateExperienceDisplay();
+                this.handleFetchNFTs();
             } else {
                 this.experienceDisplay.textContent = 'Mint NFT to view experience';
                 this.experienceDisplay.className = 'warning';
             }
 
-            // Optional: Disable/enable features based on NFT ownership
             if (!hasNFT) {
                 console.log('8. --- User does not own ShapeXp NFT - some features will be disabled ---');
-                // Here you could disable certain UI elements or show a message
             }
 
             this.expLowButton.disabled = !hasNFT;
             this.expMidButton.disabled = !hasNFT;
             this.expHighButton.disabled = !hasNFT;
+            this.fetchNFTsButton.disabled = !hasNFT;
 
         } catch (error) {
             console.error('Error checking NFT:', error);
@@ -240,6 +248,49 @@ class ConnectionManager {
         } finally {
             this.setExperienceButtonsState(false);
         }
+    }
+
+    private async handleFetchNFTs() {
+        try {
+            this.nftFetchStatus.textContent = 'Fetching NFTs...';
+            this.fetchNFTsButton.disabled = true;
+            this.nftList.innerHTML = '';
+
+            // Fetch NFTs
+            const allNFTs = await fetchUserNFTs();
+
+            // Filter out ShapeXpNFT from the list
+            const filteredNFTs = filterNFTs(allNFTs, [SHAPE_XP_NFT_ADDRESS.toLowerCase()]);
+
+            // Display NFTs
+            this.displayNFTs(filteredNFTs);
+
+            this.nftFetchStatus.textContent = `Found ${filteredNFTs.length} NFTs`;
+        } catch (error: any) {
+            console.error('NFT fetch error:', error);
+            this.nftFetchStatus.textContent = error.message;
+        } finally {
+            this.fetchNFTsButton.disabled = false;
+        }
+    }
+
+    private displayNFTs(nfts: SimpleNFT[]) {
+        this.nftList.innerHTML = nfts.map(nft => `
+            <div class="nft-item">
+                ${nft.imageUrl ? `
+                    <img
+                        src="${nft.imageUrl}"
+                        alt="${nft.name || 'NFT'}"
+                        class="nft-image"
+                        onerror="this.src='placeholder-image-url.png'"
+                    />
+                ` : ''}
+                <p><strong>Name:</strong> ${nft.name || 'Unnamed'}</p>
+                <p><strong>Contract:</strong> ${this.shortenAddress(nft.contractAddress)}</p>
+                <p><strong>Token ID:</strong> ${nft.tokenId}</p>
+                ${nft.symbol ? `<p><strong>Symbol:</strong> ${nft.symbol}</p>` : ''}
+            </div>
+        `).join('');
     }
 
     private setExperienceButtonsState(disabled: boolean) {

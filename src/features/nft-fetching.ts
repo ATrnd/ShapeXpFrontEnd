@@ -68,32 +68,6 @@ export function filterNFTs(nfts: SimpleNFT[], excludeAddresses: string[]): Simpl
     );
 }
 
-/**
- * Creates HTML element for NFT with necessary data attributes
- */
-// export function createNFTElement(nft: SimpleNFT): HTMLElement {
-//     const div = document.createElement('div');
-//     div.className = 'nft-item';
-//
-//     // Add all necessary data attributes
-//     div.dataset.contractAddress = nft.contractAddress;
-//     div.dataset.tokenId = nft.tokenId;
-//     div.dataset.convertedTokenId = convertTokenId(nft.tokenId);
-//
-//     // Create HTML content
-//     div.innerHTML = `
-//         <img
-//             src="${nft.imageUrl}"
-//             alt="${nft.name}"
-//             class="nft-image"
-//             onerror="this.src='/placeholder-image.png'"
-//         />
-//         <p class="nft-name">${nft.name}</p>
-//     `;
-//
-//     return div;
-// }
-
 export function createNFTElement(nft: SimpleNFT): HTMLElement {
     const div = document.createElement('div');
     div.className = 'nft-item';

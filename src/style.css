@@ -208,3 +208,35 @@ button {
     font-weight: 500;
     word-break: break-word;
 }
+
+.experience-display {
+    width: 100%;
+    margin-top: 8px;
+}
+
+.experience-text {
+    margin: 0;
+    font-size: 0.9em;
+    color: #666;
+}
+
+.experience-bar {
+    width: 100%;
+    height: 4px;
+    background-color: #eee;
+    border-radius: 2px;
+    margin-top: 4px;
+    position: relative;
+    overflow: hidden;
+}
+
+.experience-bar::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: var(--percent, 0%);
+    background-color: #4CAF50;
+    transition: width 0.3s ease;
+}

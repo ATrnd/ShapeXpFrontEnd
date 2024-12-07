@@ -13,12 +13,6 @@ export async function getShapeXpNFTContract() {
         SHAPE_XP_NFT_ABI,
         signer
     );
-
-    console.log('NFT Contract connection details:', {
-        address: contract.target,
-        signer: await signer.getAddress()
-    });
-
     return contract;
 }
 

@@ -192,3 +192,19 @@ button {
     border-color: #da190b;
 }
 
+.inventory-section {
+    padding: 20px;
+}
+
+.nft-image-placeholder {
+    width: 100px;
+    height: 100px;
+    background-color: #eee;
+    border-radius: 4px;
+}
+
+.nft-name {
+    margin: 0;
+    font-weight: 500;
+    word-break: break-word;
+}

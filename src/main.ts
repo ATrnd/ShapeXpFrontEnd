@@ -8,6 +8,7 @@ import { ExperienceAmount } from './contracts/abis.ts';
 import { fetchUserNFTs, filterNFTs, SimpleNFT, createNFTElement } from './features/nft-fetching';
 import { SHAPE_XP_NFT_ADDRESS } from './contracts/addresses';
 import { renderInventory } from './features/inventory-management';
+import { addNFTToInventory } from './features/inventory-actions';
 
 declare global {
     interface Window {
@@ -339,23 +340,70 @@ class ConnectionManager {
         nfts.forEach(nft => {
             const nftElement = createNFTElement(nft);
 
-            nftElement.addEventListener('click', () => {
-                const contractAddress = nftElement.dataset.contractAddress;
-                const tokenId = nftElement.dataset.tokenId;
-                const convertedTokenId = nftElement.dataset.convertedTokenId;
+            // Get the add to inventory button
+            const addButton = nftElement.querySelector('.add-to-inventory-btn') as HTMLButtonElement;
+            const statusElement = nftElement.querySelector('.add-status') as HTMLElement;
 
-                if (contractAddress && tokenId && convertedTokenId) {
-                    this.handleNFTSelection({
-                        contractAddress,
-                        tokenId,
-                        convertedTokenId
-                    });
-                }
-            });
+            if (addButton && statusElement) {
+                addButton.addEventListener('click', async () => {
+                    try {
+                        // Disable button during transaction
+                        addButton.disabled = true;
+                        statusElement.textContent = 'Adding to inventory...';
+                        statusElement.className = 'add-status pending';
+
+                        const result = await addNFTToInventory(
+                            nftElement.dataset.contractAddress!,
+                            nftElement.dataset.convertedTokenId!
+                        );
+
+                        if (result.success) {
+                            statusElement.textContent = 'Successfully added to inventory!';
+                            statusElement.className = 'add-status success';
+                            // Update inventory display
+                            await this.updateInventoryDisplay();
+                        } else {
+                            statusElement.textContent = result.error || 'Unknown error occurred';
+                            statusElement.className = 'add-status error';
+                            addButton.disabled = false;
+                        }
+
+                    } catch (error: any) {
+                        console.error('Add to inventory error:', error);
+                        statusElement.textContent = error.message || 'Failed to add to inventory';
+                        statusElement.className = 'add-status error';
+                        addButton.disabled = false;
+                    }
+                });
+            }
 
             this.nftList.appendChild(nftElement);
         });
     }
+
+    // private displayNFTs(nfts: SimpleNFT[]) {
+    //     this.nftList.innerHTML = '';
+
+    //     nfts.forEach(nft => {
+    //         const nftElement = createNFTElement(nft);
+
+    //         nftElement.addEventListener('click', () => {
+    //             const contractAddress = nftElement.dataset.contractAddress;
+    //             const tokenId = nftElement.dataset.tokenId;
+    //             const convertedTokenId = nftElement.dataset.convertedTokenId;
+
+    //             if (contractAddress && tokenId && convertedTokenId) {
+    //                 this.handleNFTSelection({
+    //                     contractAddress,
+    //                     tokenId,
+    //                     convertedTokenId
+    //                 });
+    //             }
+    //         });
+
+    //         this.nftList.appendChild(nftElement);
+    //     });
+    // }
 
     private async updateInventoryDisplay() {
         try {

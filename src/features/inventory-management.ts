@@ -4,6 +4,8 @@ import { getCurrentAddress } from '../utils/provider';
 import { NETWORKS } from '../utils/network-config';
 import { getNFTExperience } from './nft-experience';
 import { ExperienceManager, TRANSFER_EXPERIENCE_AMOUNT } from './experience-transfer';
+import { addNFTExperience } from './experience-addition';
+import { MAX_ADDITION_PER_TURN } from './experience-transfer';
 
 // Define enhanced types for inventory
 interface InventorySlot {
@@ -75,18 +77,12 @@ export async function fetchInventory(): Promise<InventoryData> {
                     };
                 }
 
-                // Fetch metadata for non-empty slots
-                const metadata = await fetchNFTMetadata(
-                    contract,
-                    tokenIds[index].toString()
-                );
-
-                return {
+                // Fetch complete slot data including experience
+                return await fetchSlotData({
                     nftContract: contract,
                     tokenId: tokenIds[index].toString(),
-                    isEmpty: false,
-                    metadata: metadata || undefined
-                };
+                    isEmpty: false
+                });
             })
         );
 
@@ -112,80 +108,10 @@ async function fetchSlotData(slot: InventorySlot): Promise<InventorySlot> {
 
     return {
         ...slot,
-        // Convert null to undefined, or keep the metadata object if it exists
         metadata: metadataResult || undefined,
-        experience: experienceResult.experience
+        experience: experienceResult.experience // Use the actual experience from blockchain
     };
 }
-
-// export async function renderInventory(containerId: string): Promise<void> {
-//     const container = document.getElementById(containerId);
-//     if (!container) {
-//         throw new Error('Inventory container not found');
-//     }
-//
-//     try {
-//         container.innerHTML = '<div class="loading">Loading inventory...</div>';
-//         const inventory = await fetchInventory();
-//         const globalExpElement = document.getElementById('experience-display');
-//         const globalExp = parseInt(globalExpElement?.textContent?.split(':')[1].trim() || '0');
-//         const expManager = new ExperienceManager(globalExp);
-//
-//         const inventoryHTML = `
-//             <div class="inventory-container">
-//                 <h3>Inventory Slots (${inventory.slots.length}/${inventory.totalSlots})</h3>
-//                 <div class="inventory-grid">
-//                     ${inventory.slots.map(slot => `
-//                         <div class="inventory-slot ${slot.isEmpty ? 'empty' : 'occupied'}"
-//                              ${!slot.isEmpty ? `
-//                                  data-contract-address="${slot.nftContract}"
-//                                  data-token-id="${slot.tokenId}"
-//                              ` : ''}>
-//                             ${slot.isEmpty ?
-//                                 '<div class="empty-slot">Empty Slot</div>' :
-//                                 `<div class="slot-content">
-//                                     ${slot.metadata?.imageUrl ?
-//                                         `<img src="${slot.metadata.imageUrl}"
-//                                               alt="${slot.metadata.name || 'NFT'}"
-//                                               class="nft-image"
-//                                               onerror="this.src='/placeholder-image.png'">` :
-//                                         '<div class="nft-image-placeholder"></div>'
-//                                     }
-//                                     <p class="nft-name">${slot.metadata?.name || 'Unnamed NFT'}</p>
-//                                     <div class="experience-display">
-//                                         <p class="experience-text">XP: ${slot.experience || '0'}</p>
-//                                         <div class="experience-bar"
-//                                              style="--percent: ${calculateExperiencePercentage(slot.experience)}%">
-//                                         </div>
-//                                     </div>
-//
-//                                     <div class="experience-controls">
-//                                         <button class="exp-button minus" disabled>-</button>
-//                                         <div class="experience-display">
-//                                             <p class="experience-text">XP: ${slot.experience || '0'}</p>
-//                                             <div class="experience-bar"
-//                                                  style="--percent: ${calculateExperiencePercentage(slot.experience)}%">
-//                                             </div>
-//                                         </div>
-//                                         <button class="exp-button plus" ${globalExp >= TRANSFER_EXPERIENCE_AMOUNT ? '' : 'disabled'}>+</button>
-//                                     </div>
-//
-//                                 </div>`
-//                             }
-//                         </div>
-//                     `).join('')}
-//                 </div>
-//             </div>
-//         `;
-//
-//         container.innerHTML = inventoryHTML;
-//
-//     } catch (error: any) {
-//         container.innerHTML = `
-//             <div class="error">Failed to load inventory: ${error.message}</div>
-//         `;
-//     }
-// }
 
 export async function renderInventory(containerId: string): Promise<void> {
     const container = document.getElementById(containerId);
@@ -235,6 +161,10 @@ export async function renderInventory(containerId: string): Promise<void> {
                                         <button class="exp-button plus"
                                                 ${globalExp >= TRANSFER_EXPERIENCE_AMOUNT ? '' : 'disabled'}>+</button>
                                     </div>
+
+                                    <!-- Add new transfer button and status -->
+                                    <button class="transfer-exp-button">Transfer Experience</button>
+                                    <p class="transfer-status"></p>
                                 </div>`
                             }
                         </div>
@@ -259,101 +189,148 @@ function setupExperienceControls(container: HTMLElement, expManager: ExperienceM
     const slots = container.querySelectorAll('.inventory-slot.occupied');
 
     slots.forEach(slot => {
+
+        // Get required elements
         const contractAddress = slot.getAttribute('data-contract-address')!;
         const tokenId = slot.getAttribute('data-token-id')!;
         const plusBtn = slot.querySelector('.exp-button.plus') as HTMLButtonElement;
         const minusBtn = slot.querySelector('.exp-button.minus') as HTMLButtonElement;
         const expText = slot.querySelector('.experience-text') as HTMLElement;
+        const transferBtn = slot.querySelector('.transfer-exp-button') as HTMLButtonElement;
+        const transferStatus = slot.querySelector('.transfer-status') as HTMLElement;
         const globalExpDisplay = document.getElementById('experience-display')!;
 
-        // Initialize slot in experience manager
+        // Initialize experience tracking
         const currentExp = parseInt(expText.textContent?.split(':')[1].trim() || '0');
         expManager.initializeSlot(contractAddress, tokenId, currentExp);
 
+        // Plus button handler (local experience)
         plusBtn.addEventListener('click', () => {
             if (expManager.addExperienceToSlot(contractAddress, tokenId)) {
-                updateExperienceDisplays();
+                updateLocalExperienceDisplays();
             }
         });
 
+        // Minus button handler (local experience)
         minusBtn.addEventListener('click', () => {
             if (expManager.subtractExperienceFromSlot(contractAddress, tokenId)) {
-                updateExperienceDisplays();
+                updateLocalExperienceDisplays();
             }
         });
 
-        function updateExperienceDisplays() {
+        // Transfer button handler (blockchain)
+        transferBtn.addEventListener('click', async () => {
+            transferBtn.disabled = true;
+            transferStatus.textContent = 'Transferring experience...';
+            transferStatus.className = 'transfer-status pending';
+
+            try {
+                const result = await addNFTExperience(contractAddress, tokenId);
+
+                if (result.success) {
+                    transferStatus.textContent = 'Experience transferred successfully!';
+                    transferStatus.className = 'transfer-status success';
+
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    await updateBlockchainExperienceDisplays();
+                } else {
+                    transferStatus.textContent = result.error || 'Transfer failed';
+                    transferStatus.className = 'transfer-status error';
+                }
+            } catch (error: any) {
+                console.error('Transfer error:', error);
+                transferStatus.textContent = error.message || 'Transfer failed';
+                transferStatus.className = 'transfer-status error';
+            } finally {
+                transferBtn.disabled = false;
+            }
+        });
+
+        // Function to update button states
+        function updateButtonStates() {
+            const globalExp = expManager.getGlobalExperience();
+            const slotExp = expManager.getSlotExperience(contractAddress, tokenId);
+            const blockchainExp = expManager.getBlockchainExperience(contractAddress, tokenId);
+            const pendingAddition = expManager.getPendingAddition(contractAddress, tokenId);
+
+            // Plus button is disabled if:
+            // 1. Not enough global experience
+            // 2. Already added maximum amount this turn
+            plusBtn.disabled =
+                globalExp < TRANSFER_EXPERIENCE_AMOUNT ||
+                pendingAddition >= MAX_ADDITION_PER_TURN;
+
+            // Minus button is disabled if:
+            // 1. Current experience is at or below blockchain experience
+            // 2. Current experience is less than transfer amount
+            minusBtn.disabled =
+                slotExp <= blockchainExp ||
+                slotExp < TRANSFER_EXPERIENCE_AMOUNT;
+
+            // Add tooltips for better UX
+            plusBtn.title = plusBtn.disabled ?
+                (pendingAddition >= MAX_ADDITION_PER_TURN ?
+                    'Maximum addition reached for this turn' :
+                    'Not enough global experience') :
+                'Add experience';
+
+            minusBtn.title = minusBtn.disabled ?
+                'Cannot reduce below blockchain experience' :
+                'Remove experience';
+        }
+
+        // Function to update local experience displays
+        function updateLocalExperienceDisplays() {
             const globalExp = expManager.getGlobalExperience();
             const slotExp = expManager.getSlotExperience(contractAddress, tokenId);
 
-            // Update displays
+            // Update global experience display
             globalExpDisplay.textContent = `Global XP: ${globalExp}`;
-            expText.textContent = `XP: ${slotExp}`;
 
-            // Update buttons
-            plusBtn.disabled = globalExp < TRANSFER_EXPERIENCE_AMOUNT;
-            minusBtn.disabled = slotExp < TRANSFER_EXPERIENCE_AMOUNT;
+            // Update slot experience display
+            expText.textContent = `XP: ${slotExp}`;
 
             // Update progress bar
             const bar = slot.querySelector('.experience-bar') as HTMLElement;
-            bar.style.setProperty('--percent', `${calculateExperiencePercentage(slotExp.toString())}%`);
+            bar.style.setProperty('--percent',
+                `${calculateExperiencePercentage(slotExp.toString())}%`);
+
+            // Update button states
+            updateButtonStates();
         }
+
+        // Function to update experience from blockchain
+        // After successful blockchain transfer
+        async function updateBlockchainExperienceDisplays() {
+            try {
+                const { experience: nftExperience } = await getNFTExperience(
+                    contractAddress,
+                    tokenId
+                );
+
+                // Reset and reinitialize with new blockchain data
+                expManager.initializeSlot(
+                    contractAddress,
+                    tokenId,
+                    parseInt(nftExperience),
+                    parseInt(nftExperience)
+                );
+
+                // Reset pending additions after successful transfer
+                expManager.resetPendingAdditions(contractAddress, tokenId);
+
+                // Update displays
+                updateLocalExperienceDisplays();
+
+            } catch (error) {
+                console.error('Error updating blockchain experience:', error);
+            }
+        }
+
+        // Initial button state update
+        updateButtonStates();
     });
 }
-
-// export async function renderInventory(containerId: string): Promise<void> {
-//     const container = document.getElementById(containerId);
-//     if (!container) {
-//         throw new Error('Inventory container not found');
-//     }
-//
-//     try {
-//         container.innerHTML = '<div class="loading">Loading inventory...</div>';
-//         const inventory = await fetchInventory();
-//
-//         const inventoryHTML = `
-//             <div class="inventory-container">
-//                 <h3>Inventory Slots (${inventory.slots.length}/${inventory.totalSlots})</h3>
-//                 <div class="inventory-grid">
-//                     ${inventory.slots.map(slot => `
-//                         <div class="inventory-slot ${slot.isEmpty ? 'empty' : 'occupied'}"
-//                              ${!slot.isEmpty ? `
-//                                  data-contract-address="${slot.nftContract}"
-//                                  data-token-id="${slot.tokenId}"
-//                              ` : ''}>
-//                             ${slot.isEmpty ?
-//                                 '<div class="empty-slot">Empty Slot</div>' :
-//                                 `<div class="slot-content">
-//                                     ${slot.metadata?.imageUrl ?
-//                                         `<img src="${slot.metadata.imageUrl}"
-//                                               alt="${slot.metadata.name || 'NFT'}"
-//                                               class="nft-image"
-//                                               onerror="this.src='/placeholder-image.png'">` :
-//                                         '<div class="nft-image-placeholder"></div>'
-//                                     }
-//                                     <p class="nft-name">${slot.metadata?.name || 'Unnamed NFT'}</p>
-//                                     <div class="experience-display">
-//                                         <p class="experience-text">XP: ${slot.experience || '0'}</p>
-//                                         <div class="experience-bar"
-//                                              style="--percent: ${calculateExperiencePercentage(slot.experience)}%">
-//                                         </div>
-//                                     </div>
-//                                 </div>`
-//                             }
-//                         </div>
-//                     `).join('')}
-//                 </div>
-//             </div>
-//         `;
-//
-//         container.innerHTML = inventoryHTML;
-//
-//     } catch (error: any) {
-//         container.innerHTML = `
-//             <div class="error">Failed to load inventory: ${error.message}</div>
-//         `;
-//     }
-// }
 
 function calculateExperiencePercentage(experience?: string): number {
     if (!experience) return 0;

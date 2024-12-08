@@ -2,11 +2,13 @@
 
 // Constants
 export const TRANSFER_EXPERIENCE_AMOUNT = 500;
+export const MAX_ADDITION_PER_TURN = 500;
 
-// Types for managing experience state
 export interface ExperienceState {
     globalExperience: number;
     slotExperiences: Map<string, number>;
+    blockchainExperiences: Map<string, number>;
+    pendingAdditions: Map<string, number>;
 }
 
 // Helper function to get unique slot identifier
@@ -21,14 +23,23 @@ export class ExperienceManager {
     constructor(initialGlobalExp: number) {
         this.state = {
             globalExperience: initialGlobalExp,
-            slotExperiences: new Map()
+            slotExperiences: new Map(),
+            blockchainExperiences: new Map(),
+            pendingAdditions: new Map()
         };
     }
 
     // Initialize slot experience
-    public initializeSlot(contractAddress: string, tokenId: string, initialExp: number = 0) {
+    public initializeSlot(
+        contractAddress: string,
+        tokenId: string,
+        blockchainExp: number,
+        currentExp: number = blockchainExp
+    ) {
         const slotId = getSlotId(contractAddress, tokenId);
-        this.state.slotExperiences.set(slotId, initialExp);
+        this.state.blockchainExperiences.set(slotId, blockchainExp);
+        this.state.slotExperiences.set(slotId, currentExp);
+        this.state.pendingAdditions.set(slotId, 0);
     }
 
     // Add experience to slot
@@ -38,11 +49,19 @@ export class ExperienceManager {
         }
 
         const slotId = getSlotId(contractAddress, tokenId);
+        const pendingAddition = this.state.pendingAdditions.get(slotId) || 0;
+
+        // Check if we've reached the addition limit
+        if (pendingAddition >= MAX_ADDITION_PER_TURN) {
+            return false;
+        }
+
         const currentExp = this.state.slotExperiences.get(slotId) || 0;
 
         // Update state
         this.state.globalExperience -= TRANSFER_EXPERIENCE_AMOUNT;
         this.state.slotExperiences.set(slotId, currentExp + TRANSFER_EXPERIENCE_AMOUNT);
+        this.state.pendingAdditions.set(slotId, pendingAddition + TRANSFER_EXPERIENCE_AMOUNT);
 
         return true;
     }
@@ -51,8 +70,10 @@ export class ExperienceManager {
     public subtractExperienceFromSlot(contractAddress: string, tokenId: string): boolean {
         const slotId = getSlotId(contractAddress, tokenId);
         const currentExp = this.state.slotExperiences.get(slotId) || 0;
+        const blockchainExp = this.state.blockchainExperiences.get(slotId) || 0;
 
-        if (currentExp < TRANSFER_EXPERIENCE_AMOUNT) {
+        // Can't subtract below blockchain experience amount
+        if (currentExp <= blockchainExp || currentExp < TRANSFER_EXPERIENCE_AMOUNT) {
             return false;
         }
 
@@ -60,16 +81,34 @@ export class ExperienceManager {
         this.state.globalExperience += TRANSFER_EXPERIENCE_AMOUNT;
         this.state.slotExperiences.set(slotId, currentExp - TRANSFER_EXPERIENCE_AMOUNT);
 
+        // Update pending additions
+        const pendingAddition = this.state.pendingAdditions.get(slotId) || 0;
+        this.state.pendingAdditions.set(slotId, Math.max(0, pendingAddition - TRANSFER_EXPERIENCE_AMOUNT));
+
         return true;
     }
 
-    // Getters
-    public getGlobalExperience(): number {
-        return this.state.globalExperience;
-    }
+      public getGlobalExperience(): number {
+            return this.state.globalExperience;
+        }
 
-    public getSlotExperience(contractAddress: string, tokenId: string): number {
-        const slotId = getSlotId(contractAddress, tokenId);
-        return this.state.slotExperiences.get(slotId) || 0;
-    }
+        public getSlotExperience(contractAddress: string, tokenId: string): number {
+            const slotId = getSlotId(contractAddress, tokenId);
+            return this.state.slotExperiences.get(slotId) || 0;
+        }
+
+        public getBlockchainExperience(contractAddress: string, tokenId: string): number {
+            const slotId = getSlotId(contractAddress, tokenId);
+            return this.state.blockchainExperiences.get(slotId) || 0;
+        }
+
+        public getPendingAddition(contractAddress: string, tokenId: string): number {
+            const slotId = getSlotId(contractAddress, tokenId);
+            return this.state.pendingAdditions.get(slotId) || 0;
+        }
+
+        public resetPendingAdditions(contractAddress: string, tokenId: string) {
+            const slotId = getSlotId(contractAddress, tokenId);
+            this.state.pendingAdditions.set(slotId, 0);
+        }
 }

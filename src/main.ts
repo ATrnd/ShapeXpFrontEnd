@@ -381,30 +381,6 @@ class ConnectionManager {
         });
     }
 
-    // private displayNFTs(nfts: SimpleNFT[]) {
-    //     this.nftList.innerHTML = '';
-
-    //     nfts.forEach(nft => {
-    //         const nftElement = createNFTElement(nft);
-
-    //         nftElement.addEventListener('click', () => {
-    //             const contractAddress = nftElement.dataset.contractAddress;
-    //             const tokenId = nftElement.dataset.tokenId;
-    //             const convertedTokenId = nftElement.dataset.convertedTokenId;
-
-    //             if (contractAddress && tokenId && convertedTokenId) {
-    //                 this.handleNFTSelection({
-    //                     contractAddress,
-    //                     tokenId,
-    //                     convertedTokenId
-    //                 });
-    //             }
-    //         });
-
-    //         this.nftList.appendChild(nftElement);
-    //     });
-    // }
-
     private async updateInventoryDisplay() {
         try {
             this.inventoryContainer.innerHTML = '<div class="loading">Loading inventory...</div>';
